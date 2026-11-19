@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>三因子選股</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- 首次使用：輸入 GitHub 資料 repo 與 token -->
+<section id="setup" class="setup" hidden>
+  <h1>三因子選股</h1>
+  <p class="muted">持股資料與每日訊號存放在你的 GitHub 私人 repo。這個網頁本身不含任何資料，需要你的存取權杖才能讀寫。</p>
+  <form id="setup-form" class="card">
+    <label>GitHub 帳號<input name="owner" required autocomplete="username"></label>
+    <label>資料 repo 名稱<input name="repo" value="sanyinzi-data" required></label>
+    <label>存取權杖（Fine-grained token）<input name="token" type="password" required autocomplete="off"></label>
+    <button type="submit" class="primary">連線</button>
+    <p id="setup-error" class="error"></p>
+  </form>
+  <details class="card">
+    <summary>如何建立存取權杖？</summary>
+    <ol>
+      <li>到 GitHub → 右上角頭像 → Settings → Developer settings → Personal access tokens → <b>Fine-grained tokens</b> → Generate new token。</li>
+      <li>Expiration 選一個期限（到期後回來重新產生即可）。</li>
+      <li>Repository access 選 <b>Only select repositories</b>，只勾選資料 repo（sanyinzi-data）。</li>
+      <li>Permissions → Repository permissions：<b>Contents: Read and write</b>、<b>Actions: Read and write</b>。</li>
+      <li>產生後複製貼到上方。權杖只會存在這台裝置的瀏覽器裡，按「登出」即可清除。</li>
+    </ol>
+  </details>
+</section>
+
+<!-- 主畫面 -->
+<div id="main" hidden>
+  <header class="topbar">
+    <h1>三因子選股</h1>
+    <div class="topbar-actions">
+      <span id="sync-status" class="muted small"></span>
+      <button id="btn-update" title="觸發 GitHub Actions 重新抓盤後資料並計算">更新訊號</button>
+      <button id="btn-reload" title="重新讀取資料">重新整理</button>
+      <button id="btn-logout" class="ghost">登出</button>
+    </div>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button role="tab" data-tab="signals" class="active">今日訊號</button>
+    <button role="tab" data-tab="pos">持股</button>
+    <button role="tab" data-tab="closed">已結束</button>
+    <button role="tab" data-tab="settings">設定</button>
+  </nav>
+
+  <main>
+    <!-- 今日訊號 -->
+    <section id="tab-signals" class="tab active">
+      <div id="sig-cards" class="cards"></div>
+      <div class="section-head">
+        <h2>符合三因子的股票</h2>
+        <span id="sig-status" class="small muted"></span>
+      </div>
+      <div class="table-wrap">
+        <table id="sig-table">
+          <thead><tr>
+            <th>代號</th><th class="num">收盤</th><th class="num">MA20</th><th class="num">離月線</th>
+            <th class="num">帶寬%</th><th class="num">MACD柱</th><th class="num">成交(億)</th>
+            <th class="num">建議股數</th><th></th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="muted small">訊號成立 → 下一個交易日收盤前進場（回測顯示尾盤買優於開盤買）。</p>
+    </section>
+
+    <!-- 持股 -->
+    <section id="tab-pos" class="tab">
+      <div id="pos-cards" class="cards"></div>
+      <form id="pos-form" class="card form-grid" autocomplete="off">
+        <h2 class="full" id="pos-form-title">新增持股</h2>
+        <label>代號<input name="stock_id" required inputmode="numeric"></label>
+        <label>進場日<input name="entry_date" type="date" required></label>
+        <label>進場價<input name="entry_price" inputmode="decimal" required></label>
+        <label>股數<input name="shares" inputmode="numeric" required></label>
+        <label class="wide">備註<input name="note"></label>
+        <div class="full actions">
+          <button type="submit" class="primary" id="btn-save-pos">新增</button>
+          <button type="button" id="btn-clear-pos">清空</button>
+        </div>
+      </form>
+      <div class="section-head"><h2>持股檢查</h2><span id="pos-status" class="small muted"></span></div>
+      <div class="table-wrap">
+        <table id="pos-table">
+          <thead><tr>
+            <th>代號</th><th>進場日</th><th class="num">進場價</th><th class="num">股數</th>
+            <th class="num">收盤</th><th class="num">MA20</th><th class="num">損益%</th>
+            <th class="num">損益(元)</th><th>動作</th><th></th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 已結束 -->
+    <section id="tab-closed" class="tab">
+      <div class="section-head"><h2>已出場紀錄</h2><span id="closed-sum" class="small muted"></span></div>
+      <div class="table-wrap">
+        <table id="closed-table">
+          <thead><tr>
+            <th>代號</th><th>進場日</th><th class="num">進場價</th><th>出場日</th><th class="num">出場價</th>
+            <th class="num">股數</th><th class="num">損益(元)</th><th class="num">報酬率</th><th>原因</th><th></th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="muted small">損益已扣手續費 0.1425%×2 與證交稅 0.3%（未計券商折讓）。</p>
+    </section>
+
+    <!-- 設定 -->
+    <section id="tab-settings" class="tab">
+      <form id="set-form" class="card form-grid" autocomplete="off">
+        <h2 class="full">資金配置</h2>
+        <label>每檔投入金額(元)<input name="capital_per_trade" inputmode="numeric" required></label>
+        <p class="muted small full">用來換算「建議股數」。儲存後會觸發重新計算。</p>
+        <div class="full actions"><button type="submit" class="primary">儲存</button></div>
+      </form>
+      <div id="rules" class="card muted small"></div>
+    </section>
+  </main>
+</div>
+
+<div id="toast" class="toast" hidden></div>
+
+<script src="calc.js"></script>
+<script src="github.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
